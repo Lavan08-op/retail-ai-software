@@ -19,6 +19,47 @@ changing.
 No Node.js, no Docker, no external database server needed — everything
 runs locally with SQLite.
 
+### Verify what you have
+
+```powershell
+python --version
+python -m pip --version
+python -c "import venv; print('venv module OK')"
+git --version
+```
+
+All four should return a version number (Python 3.11+) or `venv module OK`
+with no errors. If anything's missing, install it with the commands below.
+
+### Install anything missing (Windows, via winget)
+
+`winget` comes built into Windows 10/11 — these install straight from the
+terminal, no browser needed:
+
+```powershell
+winget install -e --id Python.Python.3.12
+winget install -e --id Git.Git
+```
+
+**Close and reopen your terminal after installing** — PATH changes from a
+fresh install don't apply to an already-open terminal window. Then re-run
+the verify commands above to confirm.
+
+If `winget` itself isn't recognized, it ships with the "App Installer"
+package from the Microsoft Store — install that first, or fall back to
+downloading manually from python.org/downloads (check **"Add python.exe to
+PATH"** during install) and git-scm.com/download/win.
+
+Once installed, bring pip itself up to date (avoids occasional install
+failures from an outdated resolver):
+```powershell
+python -m pip install --upgrade pip
+```
+
+**Note on the PySide6 control room:** it needs an actual display to open a
+window — not a concern on a normal desktop/laptop, but it won't run
+headless (e.g. over SSH) without extra configuration.
+
 ## Setup
 
 ```bash
