@@ -1,0 +1,8 @@
+pydantic>=2.0
+sqlalchemy>=2.0
+alembic
+pytest
+pyyaml
+python-dotenv
+streamlit
+PySide6

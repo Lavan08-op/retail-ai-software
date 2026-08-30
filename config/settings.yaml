@@ -1,0 +1,38 @@
+cameras:
+  - id: shelf-cam-1
+    zone_id: shelf-zone-1
+    label: "Shelf Camera 1"
+  - id: shelf-cam-2
+    zone_id: shelf-zone-2
+    label: "Shelf Camera 2"
+  - id: shelf-cam-3
+    zone_id: shelf-zone-3
+    label: "Shelf Camera 3"
+  - id: entry-cam
+    zone_id: entrance
+    label: "Entrance Camera"
+  - id: queue-cam-1
+    zone_id: checkout-1
+    label: "Checkout Queue Camera 1"
+  - id: queue-cam-2
+    zone_id: checkout-2
+    label: "Checkout Queue Camera 2"
+
+streaming:
+  resolution: "1280x720"
+  fps: 15
+  bitrate_kbps: 2000
+  congested_fallback:
+    resolution: "854x480"
+    fps: 10
+
+alert_thresholds:
+  queue_length_warning: 5
+  queue_length_critical: 8
+  occupancy_warning_pct: 80
+  dwell_seconds_warning: 300
+
+alert_cooldown_seconds:
+  QUEUE_THRESHOLD_EXCEEDED: 60
+  HIGH_OCCUPANCY: 120
+  CAMERA_OFFLINE: 30

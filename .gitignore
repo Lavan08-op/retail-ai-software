@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Virtual environment — each person creates their own locally
+venv/
+.venv/
+
+# Environment secrets — copy .env.example to .env locally, never commit .env itself
+.env
+
+# SQLite database — generated locally by init_db()/demo_mode, not source
+data/
+
+# Test/tool caches
+.pytest_cache/
+.mypy_cache/
+
+# Streamlit local state
+.streamlit/
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
