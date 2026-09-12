@@ -4,6 +4,7 @@ alembic
 pytest
 pyyaml
 python-dotenv
-streamlit
+customtkinter
+matplotlib
 PySide6
 numpy

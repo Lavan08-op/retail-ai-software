@@ -4,7 +4,7 @@ The software side of an SIH retail-intelligence project: real-time shopper
 analytics, inventory visibility, and queue management, designed to run
 entirely offline/local (no cloud dependency).
 
-This repo covers analytics, storage, alerts, a Streamlit BI dashboard, and
+This repo covers analytics, storage, alerts, a CustomTkinter BI dashboard, and
 a PySide6 live control room — all built and tested against mock
 video/inference/tracking, so it runs completely standalone right now, with
 clean seams for the hardware/AI team's real camera stream and Qualcomm
@@ -15,9 +15,7 @@ changing.
 
 - Python 3.11 or newer
 - Git
-
-No Node.js, no Docker, no external database server needed — everything
-runs locally with SQLite.
+  runs locally with SQLite.
 
 ### Verify what you have
 
@@ -52,6 +50,7 @@ PATH"** during install) and git-scm.com/download/win.
 
 Once installed, bring pip itself up to date (avoids occasional install
 failures from an outdated resolver):
+
 ```powershell
 python -m pip install --upgrade pip
 ```
@@ -70,6 +69,7 @@ python -m venv venv
 ```
 
 Activate it:
+
 ```bash
 # Windows (PowerShell)
 venv\Scripts\Activate.ps1
@@ -79,11 +79,13 @@ source venv/bin/activate
 ```
 
 If PowerShell blocks the activation script:
+
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -93,6 +95,7 @@ pip install -r requirements.txt
 ```bash
 pytest tests/ -v
 ```
+
 Expected: **79 passed**. This includes tests proving the single-writer/WAL
 SQLite design is genuinely enforced (not just documented), the alert
 cooldown mechanism actually suppresses repeat alerts, and the PySide6
@@ -105,24 +108,30 @@ All three read/write the same local SQLite file (`data/retail_ai.db`,
 created automatically on first run — nothing to set up manually).
 
 **Terminal 1 — continuous demo data generator:**
+
 ```bash
 python -m simulation.demo_mode --seed 42
 ```
+
 Leave running. Simulates all 6 cameras (3 shelf, entrance, 2 queue) with
 varying footfall and occasional queue spikes, so there's always live data
 to look at.
 
-**Terminal 2 — Streamlit BI dashboard:**
+**Terminal 2 — CustomTkinter BI dashboard:**
+
 ```bash
-streamlit run dashboard/app.py
+python -m dashboard.app
 ```
-Opens in your browser. 9 pages: overview, traffic, occupancy, queue,
-shelf, visibility, monetization, alerts, reports.
+
+Opens a native desktop window with 7 pages: overview, traffic, occupancy,
+queue, shelf, alerts, and reports.
 
 **Terminal 3 — PySide6 live control room:**
+
 ```bash
 python -m control_room.main
 ```
+
 A desktop window with live KPIs and an active-alerts list, updating every
 ~2 seconds, with an audio beep on new critical alerts.
 
@@ -143,7 +152,7 @@ storage/       # SQLAlchemy + SQLite, single-writer/WAL enforced, Alembic migrat
 services/      # Orchestration layer — the only thing UIs/pipeline call directly
 pipeline/      # The real-time loop (currently driven by mock adapters)
 file_management/  # Export/report file handling
-dashboard/     # Streamlit BI dashboard
+dashboard/     # CustomTkinter BI dashboard
 control_room/  # PySide6 live desktop view
 simulation/    # Demo data generator
 tests/         # 79 tests — unit (pure logic, no I/O) + integration (full chains)
@@ -166,12 +175,12 @@ to the internet at runtime.
 
 - **Software side (this repo):** backend, database, analytics, alerts,
   both dashboards — built here
-- **Hardware/AI side (not in this repo yet):** Raspberry Pi, cameras,
   GStreamer streaming, Qualcomm Detectron2 inference, object tracking
 
 ## Optional: Alembic migrations
 
 The schema is stable, but Alembic is set up for when it needs to change:
+
 ```bash
 # after editing storage/models.py
 alembic revision --autogenerate -m "describe the change"
