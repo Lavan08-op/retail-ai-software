@@ -41,10 +41,17 @@ def run_demo(
     duration_seconds: float | None = None,
     tick_seconds: float = 2.0,
     seed: int | None = None,
+    max_ticks: int | None = None,
 ) -> int:
-    """Runs the demo loop. Returns the number of ticks completed — mainly
-    useful for tests, which run this for a short fixed duration and assert
-    on the return value plus what landed in storage."""
+    """Runs the demo loop. Returns the number of ticks completed.
+
+    max_ticks, if given, runs exactly that many ticks back-to-back with NO
+    sleep between them — deterministic and machine-speed-independent,
+    which is what tests should use. duration_seconds/tick_seconds are for
+    real interactive use (a live demo), where wall-clock pacing actually
+    matters; how many ticks fit in N seconds depends on machine speed and
+    should never be asserted on in a test.
+    """
 
     init_db()
     rng = random.Random(seed)
@@ -64,9 +71,14 @@ def run_demo(
 
     start = time.monotonic()
     tick = 0
-    print("Demo running. Press Ctrl+C to stop.")
+    print(f"Demo running for {max_ticks} ticks." if max_ticks is not None else "Demo running. Press Ctrl+C to stop.")
     try:
-        while duration_seconds is None or (time.monotonic() - start) < duration_seconds:
+        while True:
+            if max_ticks is not None and tick >= max_ticks:
+                break
+            if max_ticks is None and duration_seconds is not None and (time.monotonic() - start) >= duration_seconds:
+                break
+
             tick += 1
             for runner in runners.values():
                 runner.run_once()
@@ -78,6 +90,9 @@ def run_demo(
                 analytics_service.process_queue_reading(queue_camera_id, zone_id, queue_length)
 
             print(f"tick {tick} ok")
+
+            if max_ticks is not None:
+                continue  # deterministic mode — no pacing, no duration checks
             if duration_seconds is not None and (time.monotonic() - start) >= duration_seconds:
                 break
             time.sleep(tick_seconds)

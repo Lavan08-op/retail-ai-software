@@ -6,3 +6,4 @@ pyyaml
 python-dotenv
 streamlit
 PySide6
+numpy

@@ -40,10 +40,10 @@ class PipelineRunner:
         self.camera_zone_map = camera_zone_map or {}
 
     def run_once(self) -> None:
-        frame = self.video_source.get_frame()
-        if frame is None:
+        frame_data = self.video_source.get_frame()
+        if frame_data is None:
             return
-        detections = self.inference_engine.infer(frame)
+        detections = self.inference_engine.infer(frame_data)
         tracks = self.tracker.update(detections)
         if self.camera_zone_map:
             tracks = assign_zones(tracks, self.camera_zone_map)

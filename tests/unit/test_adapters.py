@@ -13,17 +13,40 @@ from adapters.tracking.mock_tracker import MockTracker  # noqa: E402
 from adapters.video.mock_video_source import MockVideoSource  # noqa: E402
 
 
-def test_video_source_produces_frames():
+def test_video_source_produces_frame_data_with_real_pixels():
     source = MockVideoSource("queue-cam-1")
-    frame = source.get_frame()
-    assert frame is not None
-    assert frame.camera_id == "queue-cam-1"
-    assert frame.frame_index == 1
+    frame_data = source.get_frame()
+    assert frame_data is not None
+    assert frame_data.metadata.camera_id == "queue-cam-1"
+    assert frame_data.metadata.frame_index == 1
 
-    frame2 = source.get_frame()
-    assert frame2.frame_index == 2
+    # The actual point of FrameData: real pixel data, correctly shaped —
+    # not just metadata.
+    assert frame_data.image.shape == (720, 1280, 3)
+    assert frame_data.image.dtype.name == "uint8"
+
+    frame_data_2 = source.get_frame()
+    assert frame_data_2.metadata.frame_index == 2
     assert source.is_connected() is True
     assert source.camera_id() == "queue-cam-1"
+
+
+def test_inference_engine_genuinely_reads_pixel_data_not_just_metadata():
+    """Proves the pixel array actually flows from VideoSource through to
+    InferenceEngine — not just that a FrameData-shaped object gets passed
+    around unread. A real Qualcomm engine needs real pixels; this is what
+    confirms the plumbing actually delivers them."""
+    source = MockVideoSource("queue-cam-1", width=64, height=64, seed=1)
+    engine = MockInferenceEngine(min_people=1, max_people=1, seed=1)
+
+    frame_data = source.get_frame()
+    expected_mean = float(frame_data.image.mean())
+
+    detections = engine.infer(frame_data)
+
+    assert len(detections) == 1
+    reported_mean = detections[0].metadata["frame_mean_brightness"]
+    assert reported_mean == round(expected_mean, 2)
 
 
 def test_inference_engine_returns_detections():
