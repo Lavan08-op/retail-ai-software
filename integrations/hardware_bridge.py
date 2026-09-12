@@ -44,6 +44,12 @@ CAMERA_ID_MAP = {
     "queue_2": ("queue-cam-2", "checkout-2"),
 }
 
+STOCK_CAMERA_ID_MAP = {
+    "stock_camera_1": ("shelf-cam-1", "shelf-zone-1"),
+    "stock_camera_2": ("shelf-cam-2", "shelf-zone-2"),
+    "stock_camera_3": ("shelf-cam-3", "shelf-zone-3"),
+}
+
 # If a status file's timestamp is older than this, treat it as stale (the
 # sensor may be disconnected/dead) and skip processing it rather than
 # silently acting on old data. Mirrors their own health_monitor's
@@ -55,6 +61,13 @@ def _parse_timestamp(value: str) -> datetime | None:
     try:
         return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
     except (ValueError, TypeError):
+        return None
+
+
+def _parse_health_timestamp(value: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+    except (ValueError, AttributeError, TypeError):
         return None
 
 
@@ -137,12 +150,69 @@ class HardwareMetricsBridge:
         writer.write_queue_metric(camera_id, zone_id, queue_length, avg_wait_seconds=None)
         return True
 
+    def sync_stock_status(self) -> int:
+        """Reads stock_status.json and stores one product snapshot per camera."""
+
+        status = _read_json(self.runtime_dir / "stock_status.json")
+        if status is None or not _is_fresh(status):
+            return 0
+
+        cameras = status.get("cameras")
+        if not isinstance(cameras, dict) or not cameras:
+            cameras = {"stock_camera_1": {"stock": status.get("products", {})}}
+
+        timestamp = _parse_timestamp(status.get("timestamp", ""))
+        written = 0
+        for hardware_name, camera_status in cameras.items():
+            if not isinstance(camera_status, dict):
+                continue
+            camera_id, zone_id = STOCK_CAMERA_ID_MAP.get(hardware_name, (hardware_name, None))
+            products = camera_status.get("stock", {})
+            if not isinstance(products, dict):
+                continue
+            normalized = {}
+            for product, quantity in products.items():
+                try:
+                    normalized[str(product)] = int(quantity)
+                except (TypeError, ValueError):
+                    continue
+            connected = camera_status.get("connected") is True
+            writer.upsert_camera(
+                camera_id,
+                label=camera_id,
+                zone_id=zone_id,
+                online=connected,
+                last_seen=timestamp,
+            )
+            writer.write_inventory_snapshot(camera_id, normalized, timestamp=timestamp)
+            written += 1
+        return written
+
+    def read_health_status(self) -> dict | None:
+        """Reads the hardware health report without creating a second monitor."""
+
+        report = _read_json(self.runtime_dir / "edge_health.json")
+        if report is None:
+            return None
+        timestamp = _parse_health_timestamp(report.get("timestamp", ""))
+        if timestamp is None:
+            return None
+        report["fresh"] = (datetime.now() - timestamp).total_seconds() <= STALE_SECONDS
+        return report
+
     def poll_once(self) -> dict:
         """Runs one full poll cycle. Returns a small summary dict, mainly
         useful for logging/tests."""
         entry_events_written = self.sync_entry_status()
         queue_written = self.sync_queue_status()
-        return {"entry_exit_events_written": entry_events_written, "queue_reading_written": queue_written}
+        stock_snapshots_written = self.sync_stock_status()
+        health = self.read_health_status()
+        return {
+            "entry_exit_events_written": entry_events_written,
+            "queue_reading_written": queue_written,
+            "stock_snapshots_written": stock_snapshots_written,
+            "health_available": health is not None,
+        }
 
     def run_forever(self, interval_seconds: float = 2.0) -> None:
         print(f"Bridging hardware metrics from {self.runtime_dir} every {interval_seconds}s. Ctrl+C to stop.")

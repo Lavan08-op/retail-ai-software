@@ -1,0 +1,4 @@
+# Optional dependencies for live RTSP + YOLO processing.
+# Keep requirements.txt lightweight for tests and offline development.
+opencv-python-headless>=4.9
+ultralytics>=8.3

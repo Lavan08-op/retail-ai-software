@@ -18,6 +18,7 @@ from storage.models import (
     Detection,
     EntryExitEvent,
     EventRecord,
+    InventorySnapshot,
     MonetizationMetric,
     OccupancyMetric,
     QueueMetric,
@@ -105,6 +106,15 @@ def write_occupancy(zone_id: str | None, current_count: int) -> None:
 def write_shelf_event(camera_id: str, zone_id: str | None, event_label: str) -> None:
     with SessionWriter() as session:
         session.add(ShelfMetric(camera_id=camera_id, zone_id=zone_id, event_label=event_label))
+        session.commit()
+
+
+def write_inventory_snapshot(camera_id: str, products: dict[str, int], timestamp: datetime | None = None) -> None:
+    with SessionWriter() as session:
+        snapshot = InventorySnapshot(camera_id=camera_id, products_json=products)
+        if timestamp is not None:
+            snapshot.timestamp = timestamp
+        session.add(snapshot)
         session.commit()
 
 

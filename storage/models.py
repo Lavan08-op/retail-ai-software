@@ -95,6 +95,15 @@ class ShelfMetric(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
 
 
+class InventorySnapshot(Base):
+    __tablename__ = "inventory_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    camera_id: Mapped[str] = mapped_column(ForeignKey("cameras.id"), index=True)
+    products_json: Mapped[dict] = mapped_column(JSON)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
+
+
 class VisibilityMetric(Base):
     __tablename__ = "visibility_metrics"
 

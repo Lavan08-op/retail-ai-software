@@ -13,6 +13,9 @@ venv/
 
 # SQLite database — generated locally by init_db()/demo_mode, not source
 data/
+.runtime/
+.runtime-dev/
+.runtime-dev-*/
 
 # Test/tool caches
 .pytest_cache/

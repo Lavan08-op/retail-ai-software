@@ -13,6 +13,8 @@ from storage.models import (
     Camera,
     EntryExitEvent,
     EventRecord,
+    InventorySnapshot,
+    Detection,
     MonetizationMetric,
     OccupancyMetric,
     QueueMetric,
@@ -64,6 +66,18 @@ def recent_events(limit: int = 50) -> list[EventRecord]:
 def recent_shelf_events(limit: int = 20) -> list[ShelfMetric]:
     with SessionReader() as session:
         stmt = select(ShelfMetric).order_by(ShelfMetric.timestamp.desc()).limit(limit)
+        return list(session.scalars(stmt))
+
+
+def recent_inventory_snapshots(limit: int = 20) -> list[InventorySnapshot]:
+    with SessionReader() as session:
+        stmt = select(InventorySnapshot).order_by(InventorySnapshot.timestamp.desc()).limit(limit)
+        return list(session.scalars(stmt))
+
+
+def recent_detections(limit: int = 100) -> list[Detection]:
+    with SessionReader() as session:
+        stmt = select(Detection).order_by(Detection.timestamp.desc()).limit(limit)
         return list(session.scalars(stmt))
 
 

@@ -16,12 +16,14 @@ the zone-based analytics modules (occupancy, queue_monitor, shelf_monitor).
 """
 
 import time
+from collections.abc import Callable
 
 from interfaces.inference_engine import InferenceEngine
 from interfaces.tracker import Tracker
 from interfaces.video_source import VideoSource
 from pipeline.zone_mapper import assign_zones
 from services.analytics_service import AnalyticsService
+from core.models import Detection
 
 
 class PipelineRunner:
@@ -32,18 +34,22 @@ class PipelineRunner:
         tracker: Tracker,
         analytics_service: AnalyticsService,
         camera_zone_map: dict[str, str] | None = None,
+        detection_sink: Callable[[list[Detection]], None] | None = None,
     ):
         self.video_source = video_source
         self.inference_engine = inference_engine
         self.tracker = tracker
         self.analytics_service = analytics_service
         self.camera_zone_map = camera_zone_map or {}
+        self.detection_sink = detection_sink
 
     def run_once(self) -> None:
         frame_data = self.video_source.get_frame()
         if frame_data is None:
             return
         detections = self.inference_engine.infer(frame_data)
+        if self.detection_sink is not None:
+            self.detection_sink(detections)
         tracks = self.tracker.update(detections)
         if self.camera_zone_map:
             tracks = assign_zones(tracks, self.camera_zone_map)

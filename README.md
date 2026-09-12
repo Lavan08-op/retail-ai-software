@@ -90,19 +90,79 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+## Run StoreSense
+
+The unified launcher coordinates the existing edge launcher, JSON bridge,
+SQLite storage, and software dashboard. It uses `.runtime-dev` by default so
+development runs do not write into the hardware repository's runtime folder.
+
+```powershell
+python start_storesense.py --no-hardware
+```
+
+For a complete local run without physical cameras, use the development
+runtime simulator. It writes the same runtime JSON files as the hardware
+services, so the existing bridge, database, API, and dashboard receive real
+application data through the normal path:
+
+```powershell
+python start_storesense.py --dev-mode --no-hardware
+```
+
+The primary dashboard is a native CustomTkinter window. It does not have a
+browser URL; the launcher reports `DASHBOARD READY` when its process is alive.
+The API is available separately at `http://127.0.0.1:8080/health` and
+`http://127.0.0.1:8080/api/metrics`.
+
+For live RTSP and YOLO processing, install the optional live dependencies:
+
+```powershell
+pip install -r requirements-live.txt
+python start_storesense.py --no-hardware --live-ai
+```
+
+Camera URLs are environment-driven. Start MediaMTX on the Ubuntu server with:
+
+```bash
+docker compose -f deploy/mediamtx/docker-compose.yml up -d
+```
+
+Then configure the stream paths and model:
+
+```powershell
+$env:STORESENSE_CAMERA_IDS = "entry-cam,queue-cam-1"
+$env:STORESENSE_RTSP_BASE_URL = "rtsp://127.0.0.1:8554"
+$env:STORESENSE_MODEL_PATH = "yolo11n.pt"
+python start_storesense.py --no-hardware --live-ai
+```
+
+The StoreSense API is available at `/health` and `/api/metrics` on port 8080
+by default. Set `STORESENSE_API_HOST` and `STORESENSE_API_PORT` to change it.
+
+For the real hardware runtime, configure the existing paths instead of
+hardcoding machine-specific values:
+
+```powershell
+$env:STORESENSE_HARDWARE_ROOT = "<hardware-repository>"
+$env:RETAIL_EDGE_RUNTIME_DIR = "<shared-runtime-directory>"
+python start_storesense.py
+```
+
+Press `Ctrl+C` to stop only the processes started by StoreSense.
+
 ## Verify it works
 
 ```bash
 pytest tests/ -v
 ```
 
-Expected: **79 passed**. This includes tests proving the single-writer/WAL
+Expected: **92+ passed**. This includes tests proving the single-writer/WAL
 SQLite design is genuinely enforced (not just documented), the alert
 cooldown mechanism actually suppresses repeat alerts, and the PySide6
 control room genuinely receives live data from its background thread —
 not just that things import without errors.
 
-## Run it — three components, three terminals
+## Run it — existing component commands
 
 All three read/write the same local SQLite file (`data/retail_ai.db`,
 created automatically on first run — nothing to set up manually).

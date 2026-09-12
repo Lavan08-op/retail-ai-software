@@ -52,6 +52,20 @@ def _write_queue_status(runtime_dir: Path, queue_length: int, fresh: bool = True
     (runtime_dir / "queue_status.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _write_stock_status(runtime_dir: Path, fresh: bool = True) -> None:
+    payload = {
+        "timestamp": _now_str(0 if fresh else -120),
+        "products": {"cola": 4, "water": 2},
+        "cameras": {
+            "stock_camera_1": {
+                "connected": True,
+                "stock": {"cola": 4, "water": 2},
+            }
+        },
+    }
+    (runtime_dir / "stock_status.json").write_text(json.dumps(payload), encoding="utf-8")
+
+
 def test_bridge_emits_individual_entry_exit_events_from_cumulative_counts(tmp_path):
     runtime_dir = tmp_path
     bridge = HardwareMetricsBridge(runtime_dir)
@@ -106,3 +120,29 @@ def test_bridge_handles_missing_files_gracefully(tmp_path):
     result = bridge.poll_once()  # must not raise
     assert result["entry_exit_events_written"] == 0
     assert result["queue_reading_written"] is False
+
+
+def test_bridge_writes_hardware_inventory_snapshots(tmp_path):
+    runtime_dir = tmp_path
+    bridge = HardwareMetricsBridge(runtime_dir)
+
+    _write_stock_status(runtime_dir)
+    result = bridge.poll_once()
+
+    assert result["stock_snapshots_written"] == 1
+    snapshots = repositories.recent_inventory_snapshots()
+    assert snapshots[0].camera_id == "shelf-cam-1"
+    assert snapshots[0].products_json == {"cola": 4, "water": 2}
+
+
+def test_bridge_reads_existing_edge_health_report(tmp_path):
+    runtime_dir = tmp_path
+    report = {
+        "timestamp": datetime.now().isoformat(),
+        "overall_health": {"healthy": True},
+    }
+    (runtime_dir / "edge_health.json").write_text(json.dumps(report), encoding="utf-8")
+
+    result = HardwareMetricsBridge(runtime_dir).poll_once()
+
+    assert result["health_available"] is True

@@ -15,6 +15,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
 from file_management import exporters
+from integrations.edge_health import read_health_report
 from storage import repositories
 
 POLL_INTERVAL_SECONDS = 2.0
@@ -64,6 +65,8 @@ class DataPoller(threading.Thread):
                     "occupancy": repositories.recent_occupancy(limit=100),
                     "queue": repositories.recent_queue_metrics(limit=100),
                     "shelf": repositories.recent_shelf_events(limit=50),
+                    "inventory": repositories.recent_inventory_snapshots(limit=50),
+                    "health": read_health_report(os.environ.get("RETAIL_EDGE_RUNTIME_DIR", Path(".runtime-dev"))),
                     "alerts": repositories.active_alerts(),
                     "events": repositories.recent_events(limit=100),
                 })
@@ -318,7 +321,11 @@ class Dashboard(ctk.CTk):
                 cameras = self.snapshot.get("cameras", [])
                 online = sum(1 for camera in cameras if camera.online)
                 self.status_label.configure(
-                    text=f"LIVE  {datetime.now().strftime('%H:%M:%S')}\nCAMERAS  {online}/{len(cameras)} ONLINE",
+                    text=(
+                        f"LIVE  {datetime.now().strftime('%H:%M:%S')}\n"
+                        f"CAMERAS  {online}/{len(cameras)} ONLINE\n"
+                        f"EDGE  {'OK' if (self.snapshot.get('health') or {}).get('overall_health', {}).get('healthy') else 'UNKNOWN'}"
+                    ),
                     text_color="#86efac",
                 )
                 self._render_view(self.current_view)
@@ -340,7 +347,20 @@ class Dashboard(ctk.CTk):
         elif name == "Alerts":
             self._fill(frame.table, [(a.severity, a.message, a.zone_id or "-", a.status, _display_time(a.created_at)) for a in self.snapshot["alerts"]])
         elif name == "Shelf":
-            self._fill(frame.table, [(e.camera_id, e.zone_id or "-", e.event_label, _display_time(e.timestamp)) for e in self.snapshot["shelf"]])
+            rows = [
+                (e.camera_id, e.zone_id or "-", e.event_label, _display_time(e.timestamp))
+                for e in self.snapshot["shelf"]
+            ]
+            rows.extend(
+                (
+                    snapshot.camera_id,
+                    "-",
+                    "stock: " + ", ".join(f"{name}={quantity}" for name, quantity in snapshot.products_json.items()),
+                    _display_time(snapshot.timestamp),
+                )
+                for snapshot in self.snapshot.get("inventory", [])
+            )
+            self._fill(frame.table, rows)
         elif name in {"Traffic", "Occupancy", "Queue"}:
             self._render_detail_table(frame, name)
             self._render_chart(frame, name)
