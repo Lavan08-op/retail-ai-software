@@ -8,11 +8,20 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+if load_dotenv is not None:
+    load_dotenv(PROJECT_ROOT / ".env")
 
 
 class StoreSenseLauncher:
@@ -49,6 +58,7 @@ class StoreSenseLauncher:
         self.dashboard_error = None
         self.dev_stop = threading.Event()
         self.dev_thread: threading.Thread | None = None
+        self.edge_gateway = None
 
     def start(self) -> None:
         self.runtime_dir.mkdir(parents=True, exist_ok=True)
@@ -91,6 +101,8 @@ class StoreSenseLauncher:
         else:
             print("[API] Disabled")
 
+        self._start_edge_gateway()
+
         if self.start_dashboard:
             self._start_dashboard()
         else:
@@ -131,6 +143,37 @@ class StoreSenseLauncher:
             self.api_server = None
             raise RuntimeError(f"API failed to bind {host}:{port}: {error}") from error
         print(f"[API] Started at http://{host}:{port}")
+
+    def _start_edge_gateway(self) -> None:
+        endpoint = os.environ.get("STORESENSE_EDGE_GATEWAY_URL", "").strip()
+        if not endpoint:
+            print("[EDGE] Gateway output disabled (set STORESENSE_EDGE_GATEWAY_URL to enable)")
+            return
+        from integrations.edge_gateway import QueueGatewayPublisher, queue_payload
+        from storage import repositories
+
+        def latest_queue() -> dict:
+            metric = repositories.latest_queue_metric()
+            stale = True
+            if metric is not None:
+                timestamp = metric.timestamp
+                if timestamp.tzinfo is None:
+                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+                stale = (datetime.now(timezone.utc) - timestamp).total_seconds() > 30
+            return queue_payload(
+                metric.queue_length if metric and not stale else 0,
+                metric.camera_id if metric else "queue-cam-1",
+                metric.zone_id if metric and metric.zone_id else "checkout-1",
+                stale=stale,
+            )
+
+        self.edge_gateway = QueueGatewayPublisher(
+            endpoint,
+            latest_queue,
+            interval_seconds=float(os.environ.get("STORESENSE_EDGE_GATEWAY_INTERVAL", "1")),
+        )
+        self.edge_gateway.start()
+        print(f"[EDGE] Queue publisher started: {endpoint}")
 
     def _start_hardware(self) -> None:
         if self.hardware_root is None:
@@ -202,6 +245,8 @@ class StoreSenseLauncher:
             self.live_pipeline.stop()
         if self.api_server is not None:
             self.api_server.stop()
+        if self.edge_gateway is not None:
+            self.edge_gateway.stop()
         if self.bridge_thread is not None:
             self.bridge_thread.join(timeout=3)
         if self.dev_thread is not None:

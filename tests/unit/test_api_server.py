@@ -21,5 +21,10 @@ def test_api_exposes_health_and_metrics(tmp_path, monkeypatch):
             payload = json.load(response)
             assert set(payload["entry_exit"]) == {"in", "out"}
             assert isinstance(payload["queue"], list)
+        with urlopen(f"http://127.0.0.1:{port}/api/v1/queue/latest") as response:
+            assert "queue_count" in json.load(response)
+        with urlopen(f"http://127.0.0.1:{port}/api/v1/status") as response:
+            status = json.load(response)
+            assert status["server"]["healthy"] is True
     finally:
         api.stop()

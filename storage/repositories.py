@@ -34,6 +34,11 @@ def recent_queue_metrics(limit: int = 20) -> list[QueueMetric]:
         return list(session.scalars(stmt))
 
 
+def latest_queue_metric() -> QueueMetric | None:
+    rows = recent_queue_metrics(limit=1)
+    return rows[0] if rows else None
+
+
 def recent_occupancy(limit: int = 20) -> list[OccupancyMetric]:
     with SessionReader() as session:
         stmt = select(OccupancyMetric).order_by(OccupancyMetric.timestamp.desc()).limit(limit)

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from typing import Any
+from datetime import datetime, timezone
 
 from storage import repositories
+from integrations.edge_health import read_health_report
 
 
 def _timestamp(value: Any) -> str | None:
@@ -58,12 +61,55 @@ def _metrics() -> dict[str, Any]:
     }
 
 
+def _latest_queue() -> dict[str, Any]:
+    item = repositories.latest_queue_metric()
+    if item is None:
+        return {"queue_count": 0, "camera_id": None, "zone_id": None, "timestamp": None, "stale": True}
+    timestamp = item.timestamp
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - timestamp).total_seconds()
+    return {
+        "queue_count": item.queue_length,
+        "camera_id": item.camera_id,
+        "zone_id": item.zone_id,
+        "timestamp": _timestamp(item.timestamp),
+        "stale": age > 30,
+    }
+
+
+def _status() -> dict[str, Any]:
+    runtime_dir = os.environ.get("RETAIL_EDGE_RUNTIME_DIR", ".runtime-dev")
+    return {
+        "server": {"healthy": True},
+        "queue": _latest_queue(),
+        "edge": read_health_report(runtime_dir),
+    }
+
+
 class _RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/health":
             self._send({"status": "ok"})
         elif self.path in {"/api/metrics", "/api/v1/metrics"}:
             self._send(_metrics())
+        elif self.path == "/api/v1/queue/latest":
+            self._send(_latest_queue())
+        elif self.path == "/api/v1/status":
+            self._send(_status())
+        elif self.path == "/api/v1/cameras":
+            self._send({
+                "cameras": [
+                    {
+                        "camera_id": camera.id,
+                        "label": camera.label,
+                        "zone_id": camera.zone_id,
+                        "online": camera.online,
+                        "last_seen": _timestamp(camera.last_seen),
+                    }
+                    for camera in repositories.list_cameras()
+                ]
+            })
         else:
             self.send_response(404)
             self.end_headers()

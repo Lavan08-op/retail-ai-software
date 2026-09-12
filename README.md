@@ -138,6 +138,11 @@ python start_storesense.py --no-hardware --live-ai
 
 The StoreSense API is available at `/health` and `/api/metrics` on port 8080
 by default. Set `STORESENSE_API_HOST` and `STORESENSE_API_PORT` to change it.
+The server architecture and Raspberry Pi queue contract are documented in
+[`docs/server-architecture.md`](docs/server-architecture.md). For the ASUS
+ExpertBook LAN deployment, bind the API to `0.0.0.0` and set the actual phone,
+MediaMTX, and gateway addresses in `.env`; no phone, Pi, or ESP32 address is
+assumed by the application.
 
 For the real hardware runtime, configure the existing paths instead of
 hardcoding machine-specific values:
