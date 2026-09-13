@@ -121,20 +121,37 @@ pip install -r requirements-live.txt
 python start_storesense.py --no-hardware --live-ai
 ```
 
-Camera URLs are environment-driven. Start MediaMTX on the Ubuntu server with:
+Camera URLs are environment-driven. For the four-phone setup, copy
+`.env.example` to `.env` on the Ubuntu server, then start MediaMTX:
 
 ```bash
 docker compose -f deploy/mediamtx/docker-compose.yml up -d
 ```
 
-Then configure the stream paths and model:
+With the MediaMTX workflow, set the phones to publish to these server paths:
+
+```text
+rtsp://<server-lan-ip>:8554/entry-cam
+rtsp://<server-lan-ip>:8554/queue-cam-1
+rtsp://<server-lan-ip>:8554/queue-cam-2
+rtsp://<server-lan-ip>:8554/shelf-cam-1
+```
+
+The server app then reads them locally with:
 
 ```powershell
-$env:STORESENSE_CAMERA_IDS = "entry-cam,queue-cam-1"
+$env:STORESENSE_CAMERA_IDS = "entry-cam,queue-cam-1,queue-cam-2,shelf-cam-1"
 $env:STORESENSE_RTSP_BASE_URL = "rtsp://127.0.0.1:8554"
 $env:STORESENSE_MODEL_PATH = "yolo11n.pt"
+python scripts/check_live_cameras.py
 python start_storesense.py --no-hardware --live-ai
 ```
+
+If your phone app exposes direct HTTP/MJPEG/RTSP URLs instead of publishing
+to MediaMTX, set `STORESENSE_RTSP_URL_ENTRY_CAM`,
+`STORESENSE_RTSP_URL_QUEUE_CAM_1`, `STORESENSE_RTSP_URL_QUEUE_CAM_2`, and
+`STORESENSE_RTSP_URL_SHELF_CAM_1` in `.env`. OpenCV accepts those stream URLs
+through the same live adapter.
 
 The StoreSense API is available at `/health` and `/api/metrics` on port 8080
 by default. Set `STORESENSE_API_HOST` and `STORESENSE_API_PORT` to change it.

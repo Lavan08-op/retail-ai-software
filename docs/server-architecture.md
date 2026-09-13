@@ -37,12 +37,30 @@ flowchart TD
 ## Camera configuration
 
 Do not invent phone addresses. Copy `.env.example` to `.env` and provide the
-actual RTSP URLs or a base URL whose paths are registered in MediaMTX.
+actual stream URLs or a base URL whose paths are registered in MediaMTX.
 
 ```text
-STORESENSE_CAMERA_IDS=entry-cam,queue-cam-1
-STORESENSE_RTSP_URL_ENTRY_CAM=rtsp://<phone-host>:<port>/<path>
-STORESENSE_RTSP_URL_QUEUE_CAM_1=rtsp://<phone-host>:<port>/<path>
+STORESENSE_CAMERA_IDS=entry-cam,queue-cam-1,queue-cam-2,shelf-cam-1
+STORESENSE_RTSP_BASE_URL=rtsp://127.0.0.1:8554
+```
+
+For four phones publishing into MediaMTX, configure the phone apps with the
+server LAN IP and these path names:
+
+```text
+rtsp://<server-lan-ip>:8554/entry-cam
+rtsp://<server-lan-ip>:8554/queue-cam-1
+rtsp://<server-lan-ip>:8554/queue-cam-2
+rtsp://<server-lan-ip>:8554/shelf-cam-1
+```
+
+For direct phone pull, override individual URLs in `.env`:
+
+```text
+STORESENSE_RTSP_URL_ENTRY_CAM=http://<phone-1-ip>:8080/video
+STORESENSE_RTSP_URL_QUEUE_CAM_1=http://<phone-2-ip>:8080/video
+STORESENSE_RTSP_URL_QUEUE_CAM_2=http://<phone-3-ip>:8080/video
+STORESENSE_RTSP_URL_SHELF_CAM_1=http://<phone-4-ip>:8080/video
 ```
 
 ## Raspberry Pi and ESP32 contract
@@ -75,6 +93,7 @@ Server with configured RTSP streams:
 
 ```bash
 docker compose -f deploy/mediamtx/docker-compose.yml up -d
+python scripts/check_live_cameras.py
 python start_storesense.py --no-hardware --live-ai
 ```
 
